@@ -23,14 +23,31 @@ spec:
         volumeMounts:
         - name: devnettun
           mountPath: /dev/net/tun
-        envFrom:
-        - secretRef:
-            name: cloudflare-secret
         env:
         - name: VPN_TYPE
-          value: openvpn  # or wireguard if you prefer
+          value: openvpn
+        - name: VPN_SERVICE_PROVIDER
+          valueFrom:
+            secretKeyRef:
+              name: cloudflare-secret
+              key: VPN_SERVICE_PROVIDER
+        - name: OPENVPN_USER
+          valueFrom:
+            secretKeyRef:
+              name: cloudflare-secret
+              key: OPENVPN_USER
+        - name: OPENVPN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cloudflare-secret
+              key: OPENVPN_PASSWORD
+        - name: SERVER_COUNTRIES
+          valueFrom:
+            secretKeyRef:
+              name: cloudflare-secret
+              key: SERVER_COUNTRIES
       
-      # 2. qBittorrent sharing Gluetun's network
+      # 2. qBittorrent running alongside the VPN container
       - name: qbittorrent
         image: lscr.io/linuxserver/qbittorrent:latest
         securityContext:
@@ -49,14 +66,7 @@ spec:
         - name: qbit-config
           mountPath: /config
         - name: media-storage
-          mountPath: /data  # Maps to your host media storage path
-        # Forces qBittorrent to use the VPN sidecar's network namespace
-        # (In raw K8s, sidecars share localhost loopback via pod network isolation)
-        command: ["/bin/sh", "-c"]
-        args:
-          - |
-            echo "Starting qBittorrent behind VPN..."
-            exec /init
+          mountPath: /data
       volumes:
       - name: devnettun
         hostPath:
@@ -67,7 +77,7 @@ spec:
           claimName: qbit-config-pvc
       - name: media-storage
         hostPath:
-          path: /media  # Match your host media folder path
+          path: /path/on/your/laptop/movies  # <-- Update this to match your laptop's actual path
           type: Directory
 ---
 apiVersion: v1
