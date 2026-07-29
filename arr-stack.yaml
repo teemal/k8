@@ -52,7 +52,7 @@ spec:
       - name: config
         persistentVolumeClaim: { claimName: sonarr-config-pvc }
       - name: media
-        hostPath: { path: /path/on/your/laptop/movies, type: Directory }
+        hostPath: { path: /media, type: Directory }
 ---
 apiVersion: v1
 kind: Service
@@ -89,7 +89,7 @@ spec:
       - name: config
         persistentVolumeClaim: { claimName: radarr-config-pvc }
       - name: media
-        hostPath: { path: /path/on/your/laptop/movies, type: Directory }
+        hostPath: { path: /media, type: Directory }
 ---
 apiVersion: v1
 kind: Service

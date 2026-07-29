@@ -77,7 +77,7 @@ spec:
           claimName: qbit-config-pvc
       - name: media-storage
         hostPath:
-          path: /path/on/your/laptop/movies  # <-- Update this to match your laptop's actual path
+          path: /media  # <-- Update this to match your laptop's actual path
           type: Directory
 ---
 apiVersion: v1
