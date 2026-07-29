@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qbittorrent-vpn
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qbittorrent-vpn
+  template:
+    metadata:
+      labels:
+        app: qbittorrent-vpn
+    spec:
+      containers:
+      # 1. Gluetun VPN Sidecar
+      - name: gluetun
+        image: qmcgaw/gluetun:latest
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+        volumeMounts:
+        - name: devnettun
+          mountPath: /dev/net/tun
+        envFrom:
+        - secretRef:
+            name: cloudflare-secret
+        env:
+        - name: VPN_TYPE
+          value: openvpn  # or wireguard if you prefer
+      
+      # 2. qBittorrent sharing Gluetun's network
+      - name: qbittorrent
+        image: lscr.io/linuxserver/qbittorrent:latest
+        securityContext:
+          allowPrivilegeEscalation: false
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: WEBUI_PORT
+          value: "8080"
+        ports:
+        - containerPort: 8080
+          name: webui
+        volumeMounts:
+        - name: qbit-config
+          mountPath: /config
+        - name: media-storage
+          mountPath: /data  # Maps to your host media storage path
+        # Forces qBittorrent to use the VPN sidecar's network namespace
+        # (In raw K8s, sidecars share localhost loopback via pod network isolation)
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "Starting qBittorrent behind VPN..."
+            exec /init
+      volumes:
+      - name: devnettun
+        hostPath:
+          path: /dev/net/tun
+          type: CharDevice
+      - name: qbit-config
+        persistentVolumeClaim:
+          claimName: qbit-config-pvc
+      - name: media-storage
+        hostPath:
+          path: /path/on/your/laptop/movies  # Match your host media folder path
+          type: Directory
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qbit-config-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent-svc
+spec:
+  selector:
+    app: qbittorrent-vpn
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: webui
