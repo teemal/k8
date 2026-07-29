@@ -1,106 +1,384 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: media-stack
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qbit-config-pvc
+  namespace: media-stack
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qbittorrent-vpn
+  namespace: media-stack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qbittorrent-vpn
+  template:
+    metadata:
+      labels:
+        app: qbittorrent-vpn
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: gluetun
+          image: qmcgaw/gluetun:latest
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+          env:
+            - name: VPN_SERVICE_PROVIDER
+              value: "nordvpn"
+            - name: VPN_TYPE
+              value: "openvpn"
+            - name: OPENVPN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflare-secret
+                  key: OPENVPN_USER
+            - name: OPENVPN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflare-secret
+                  key: OPENVPN_PASSWORD
+            - name: SERVER_COUNTRIES
+              value: "United States"
+        - name: qbittorrent
+          image: lscr.io/linuxserver/qbittorrent:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "America/New_York"
+            - name: WEBUI_PORT
+              value: "8080"
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+          volumeMounts:
+            - mountPath: /config
+              name: qbit-config
+            - mountPath: /data
+              name: media-storage
+          ports:
+            - containerPort: 8080
+              name: webui
+      volumes:
+        - name: qbit-config
+          persistentVolumeClaim:
+            claimName: qbit-config-pvc
+        - name: media-storage
+          hostPath:
+            path: /media
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent-svc
+  namespace: media-stack
+spec:
+  selector:
+    app: qbittorrent-vpn
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: webui
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prowlarr
+  namespace: media-stack
 spec:
   replicas: 1
-  selector: { matchLabels: { app: prowlarr } }
+  selector:
+    matchLabels:
+      app: prowlarr
   template:
-    metadata: { labels: { app: prowlarr } }
+    metadata:
+      labels:
+        app: prowlarr
     spec:
+      securityContext:
+        fsGroup: 1000
       containers:
-      - name: prowlarr
-        image: lscr.io/linuxserver/prowlarr:latest
-        ports: [{ containerPort: 9696 }]
-        volumeMounts: [{ name: config, mountPath: /config }]
+        - name: prowlarr
+          image: lscr.io/linuxserver/prowlarr:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "America/New_York"
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+          volumeMounts:
+            - mountPath: /config
+              name: prowlarr-config
+          ports:
+            - containerPort: 9696
+              name: http
       volumes:
-      - name: config
-        persistentVolumeClaim: { claimName: prowlarr-config-pvc }
+        - name: prowlarr-config
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: prowlarr-svc }
+metadata:
+  name: prowlarr-svc
+  namespace: media-stack
 spec:
-  selector: { app: prowlarr }
-  ports: [{ port: 9696, targetPort: 9696 }]
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata: { name: prowlarr-config-pvc }
-spec:
-  accessModes: [ReadWriteOnce]
-  resources: { requests: { storage: 1Gi } }
+  selector:
+    app: prowlarr
+  ports:
+    - port: 9696
+      targetPort: 9696
+      name: http
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: sonarr
+  namespace: media-stack
 spec:
   replicas: 1
-  selector: { matchLabels: { app: sonarr } }
+  selector:
+    matchLabels:
+      app: sonarr
   template:
-    metadata: { labels: { app: sonarr } }
+    metadata:
+      labels:
+        app: sonarr
     spec:
+      securityContext:
+        fsGroup: 1000
       containers:
-      - name: sonarr
-        image: lscr.io/linuxserver/sonarr:latest
-        ports: [{ containerPort: 8989 }]
-        volumeMounts:
-        - { name: config, mountPath: /config }
-        - { name: media, mountPath: /data }
+        - name: sonarr
+          image: lscr.io/linuxserver/sonarr:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "America/New_York"
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+          volumeMounts:
+            - mountPath: /config
+              name: sonarr-config
+            - mountPath: /data
+              name: media-storage
+          ports:
+            - containerPort: 8989
+              name: http
       volumes:
-      - name: config
-        persistentVolumeClaim: { claimName: sonarr-config-pvc }
-      - name: media
-        hostPath: { path: /media, type: Directory }
+        - name: sonarr-config
+          emptyDir: {}
+        - name: media-storage
+          hostPath:
+            path: /media
+            type: Directory
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: sonarr-svc }
+metadata:
+  name: sonarr-svc
+  namespace: media-stack
 spec:
-  selector: { app: sonarr }
-  ports: [{ port: 8989, targetPort: 8989 }]
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata: { name: sonarr-config-pvc }
-spec:
-  accessModes: [ReadWriteOnce]
-  resources: { requests: { storage: 2Gi } }
+  selector:
+    app: sonarr
+  ports:
+    - port: 8989
+      targetPort: 8989
+      name: http
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: radarr
+  namespace: media-stack
 spec:
   replicas: 1
-  selector: { matchLabels: { app: radarr } }
+  selector:
+    matchLabels:
+      app: radarr
   template:
-    metadata: { labels: { app: radarr } }
+    metadata:
+      labels:
+        app: radarr
     spec:
+      securityContext:
+        fsGroup: 1000
       containers:
-      - name: radarr
-        image: lscr.io/linuxserver/radarr:latest
-        ports: [{ containerPort: 7878 }]
-        volumeMounts:
-        - { name: config, mountPath: /config }
-        - { name: media, mountPath: /data }
+        - name: radarr
+          image: lscr.io/linuxserver/radarr:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "America/New_York"
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+          volumeMounts:
+            - mountPath: /config
+              name: radarr-config
+            - mountPath: /data
+              name: media-storage
+          ports:
+            - containerPort: 7878
+              name: http
       volumes:
-      - name: config
-        persistentVolumeClaim: { claimName: radarr-config-pvc }
-      - name: media
-        hostPath: { path: /media, type: Directory }
+        - name: radarr-config
+          emptyDir: {}
+        - name: media-storage
+          hostPath:
+            path: /media
+            type: Directory
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: radarr-svc }
+metadata:
+  name: radarr-svc
+  namespace: media-stack
 spec:
-  selector: { app: radarr }
-  ports: [{ port: 7878, targetPort: 7878 }]
+  selector:
+    app: radarr
+  ports:
+    - port: 7878
+      targetPort: 7878
+      name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jellyseerr
+  namespace: media-stack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jellyseerr
+  template:
+    metadata:
+      labels:
+        app: jellyseerr
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: jellyseerr
+          image: fallenbagel/jellyseerr:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "America/New_York"
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+          volumeMounts:
+            - mountPath: /app/config
+              name: jellyseerr-config
+          ports:
+            - containerPort: 5055
+              name: http
+      volumes:
+        - name: jellyseerr-config
+          emptyDir: {}
 ---
 apiVersion: v1
-kind: PersistentVolumeClaim
-metadata: { name: radarr-config-pvc }
+kind: Service
+metadata:
+  name: jellyseerr-svc
+  namespace: media-stack
 spec:
-  accessModes: [ReadWriteOnce]
-  resources: { requests: { storage: 2Gi } }
+  selector:
+    app: jellyseerr
+  ports:
+    - port: 5055
+      targetPort: 5055
+      name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jellyfin
+  namespace: media-stack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jellyfin
+  template:
+    metadata:
+      labels:
+        app: jellyfin
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: jellyfin
+          image: lscr.io/linuxserver/jellyfin:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "America/New_York"
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+          volumeMounts:
+            - mountPath: /config
+              name: jellyfin-config
+            - mountPath: /data
+              name: media-storage
+          ports:
+            - containerPort: 8096
+              name: http
+      volumes:
+        - name: jellyfin-config
+          emptyDir: {}
+        - name: media-storage
+          hostPath:
+            path: /media
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyfin-svc
+  namespace: media-stack
+spec:
+  selector:
+    app: jellyfin
+  ports:
+    - port: 8096
+      targetPort: 8096
+      name: http
