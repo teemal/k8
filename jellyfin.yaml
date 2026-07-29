@@ -39,7 +39,7 @@ spec:
           claimName: jellyfin-config-pvc
       - name: local-media
         hostPath:
-          path: /media/movies  # <-- CHANGE THIS TO YOUR LAPTOP FOLDER PATH
+          path: /media  # <-- CHANGE THIS TO YOUR LAPTOP FOLDER PATH
           type: Directory
 ---
 apiVersion: v1
