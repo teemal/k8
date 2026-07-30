@@ -44,16 +44,11 @@ spec:
               value: "nordvpn"
             - name: VPN_TYPE
               value: "wireguard"
-            - name: OPENVPN_USER
+            - name: WIREGUARD_PRIVATE_KEY
               valueFrom:
                 secretKeyRef:
                   name: cloudflare-secret
-                  key: OPENVPN_USER
-            - name: OPENVPN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: cloudflare-secret
-                  key: OPENVPN_PASSWORD
+                  key: WIREGUARD_PRIVATE_KEY
             - name: SERVER_CITIES
               value: "Ashburn"
         - name: qbittorrent
