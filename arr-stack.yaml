@@ -31,7 +31,7 @@ spec:
         app: qbittorrent-vpn
     spec:
       securityContext:
-        fsGroup: 1000
+      #  fsGroup: 1000 # Uncomment if your host mount requires it
       containers:
         - name: gluetun
           image: qmcgaw/gluetun:latest
@@ -73,7 +73,7 @@ spec:
           volumeMounts:
             - mountPath: /config
               name: qbit-config
-            - mountPath: /data
+            - mountPath: /downloads
               name: media-storage
           ports:
             - containerPort: 8080
