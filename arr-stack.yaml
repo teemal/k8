@@ -179,20 +179,22 @@ spec:
             runAsUser: 1000
             runAsGroup: 1000
           volumeMounts:
-            - mountPath: /config
-              name: sonarr-config
-            - mountPath: /data
-              name: media-storage
+            - name: media-storage
+              mountPath: /media
+            - name: sonarr-config
+              mountPath: /config
           ports:
             - containerPort: 8989
               name: http
       volumes:
-        - name: sonarr-config
-          emptyDir: {}
         - name: media-storage
           hostPath:
             path: /media
             type: Directory
+        - name: sonarr-config
+          hostPath:
+            path: /var/lib/sonarr-config
+            type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service
@@ -238,20 +240,22 @@ spec:
             runAsUser: 1000
             runAsGroup: 1000
           volumeMounts:
-            - mountPath: /config
-              name: radarr-config
-            - mountPath: /data
-              name: media-storage
+            - name: media-storage
+              mountPath: /media
+            - name: radarr-config
+              mountPath: /config
           ports:
             - containerPort: 7878
               name: http
       volumes:
-        - name: radarr-config
-          emptyDir: {}
         - name: media-storage
           hostPath:
             path: /media
             type: Directory
+        - name: radarr-config
+          hostPath:
+            path: /var/lib/radarr-config
+            type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service
