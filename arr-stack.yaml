@@ -54,8 +54,8 @@ spec:
                 secretKeyRef:
                   name: cloudflare-secret
                   key: OPENVPN_PASSWORD
-            - name: SERVER_COUNTRIES
-              value: "United States"
+            - name: SERVER_CITIES
+              value: "Ashburn"
         - name: qbittorrent
           image: lscr.io/linuxserver/qbittorrent:latest
           env:
