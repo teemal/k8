@@ -388,7 +388,9 @@ spec:
               name: http
       volumes:
         - name: jellyfin-config
-          emptyDir: {}
+          hostPath:
+            path: /var/lib/jellyfin-config
+            type: DirectoryOrCreate
         - name: media-storage
           hostPath:
             path: /media
