@@ -68,7 +68,7 @@ spec:
           volumeMounts:
             - mountPath: /config
               name: qbit-config
-            - mountPath: /downloads
+            - mountPath: /media
               name: media-storage
           ports:
             - containerPort: 8080
@@ -165,6 +165,15 @@ spec:
     spec:
       securityContext:
         fsGroup: 1000
+      initContainers:
+        - name: take-config-ownership
+          image: busybox:latest
+          command: ["chown", "-R", "1000:1000", "/config"]
+          volumeMounts:
+            - mountPath: /config
+              name: sonarr-config
+          securityContext:
+            runAsUser: 0
       containers:
         - name: sonarr
           image: lscr.io/linuxserver/sonarr:latest
@@ -226,6 +235,15 @@ spec:
     spec:
       securityContext:
         fsGroup: 1000
+      initContainers:
+        - name: take-config-ownership
+          image: busybox:latest
+          command: ["chown", "-R", "1000:1000", "/config"]
+          volumeMounts:
+            - mountPath: /config
+              name: radarr-config
+          securityContext:
+            runAsUser: 0
       containers:
         - name: radarr
           image: lscr.io/linuxserver/radarr:latest
@@ -287,6 +305,15 @@ spec:
     spec:
       securityContext:
         fsGroup: 1000
+      initContainers:
+        - name: take-config-ownership
+          image: busybox:latest
+          command: ["chown", "-R", "1000:1000", "/app/config"]
+          volumeMounts:
+            - mountPath: /app/config
+              name: jellyseerr-config
+          securityContext:
+            runAsUser: 0
       containers:
         - name: jellyseerr
           image: fallenbagel/jellyseerr:latest
@@ -308,7 +335,9 @@ spec:
               name: http
       volumes:
         - name: jellyseerr-config
-          emptyDir: {}
+          hostPath:
+            path: /var/lib/jellyseerr-config
+            type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service
@@ -381,7 +410,6 @@ spec:
     - port: 8096
       targetPort: 8096
       name: http
-
 ---
 apiVersion: apps/v1
 kind: Deployment
